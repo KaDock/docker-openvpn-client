@@ -9,6 +9,4 @@ RUN set -x \
 
 COPY openvpn/ /etc/openvpn/
 
-# Expose port and run
-EXPOSE 9091
 CMD /etc/openvpn/start.sh
