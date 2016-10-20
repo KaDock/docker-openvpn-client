@@ -1,27 +1,33 @@
 # Transmission with WebUI and OpenVPN
 Docker container which runs Transmission torrent client with WebUI while connecting to OpenVPN.
 It bundles certificates and configurations for the following VPN providers:
-* Anonine
-* BTGuard
-* Cryptostorm
-* FrootVPN
-* FrostVPN
-* HideMe
-* HideMyAss
-* IntegrityVPN
-* IPVanish
-* Ivacy
-* IVPN
-* Newshosting
-* NordVPN
-* OVPN
-* Private Internet Access
-* PrivateVPN
-* PureVPN
-* SlickVPN
-* TigerVPN
-* TorGuard
-* UsenetServerVPN
+
+| Provider Name                | Config Value |
+|:-----------------------------|:-------------|
+| Anonine | `ANONINE` |
+| BTGuard | `BTGUARD` |
+| Cryptostorm | `CRYPTOSTORM` |
+| FrootVPN | `FROOT` |
+| FrostVPN | `FROSTVPN` |
+| HideMe | `HIDEME` |
+| HideMyAss | `HIDEMYASS` |
+| IntegrityVPN | `INTEGRITYVPN` |
+| IPVanish | `IPVANISH` |
+| Ivacy | `IVACY` |
+| IVPN | `IVPN` |
+| Newshosting | `NEWSHOSTING` |
+| NordVPN | `NORDVPN` |
+| OVPN | `OVPN` |
+| Private Internet Access | `PIA` |
+| PrivateVPN | `PRIVATEVPN` |
+| PureVPN | `PUREVPN` |
+| SlickVPN | `SLICKVPN` |
+| SmartVPN | `SMARTVPN` |
+| TigerVPN | `TIGER` |
+| TorGuard | `TORGUARD` |
+| UsenetServerVPN | `USENETSERVER` |
+| Windscribe | `WINDSCRIBE` |
+| VPN.ht | `VPNHT` |
 
 When using PIA as provider it will update Transmission hourly with assigned open port. Please read the instructions below.
 
@@ -54,7 +60,7 @@ By default a folder named transmission-home will also be created under /data, th
 ### Required environment options
 | Variable | Function | Example |
 |----------|----------|-------|
-|`OPENVPN_PROVIDER` | Sets the OpenVPN provider to use. | `OPENVPN_PROVIDER=provider`. Supported providers are `PIA`, `BTGUARD`, `TIGER`, `FROOT`, `TORGUARD`, `NEWSHOSTING`, `NORDVPN`, `USENETSERVER`, `INTEGRITYVPN`, `IPVANISH`, `ANONINE`, `HIDEME`, `PUREVPN`, `HIDEMYASS`, `PRIVATEVPN`, `IVPN`, `OVPN`, `SLICKVPN`, `IVACY` and `CRYPTOSTORM`|
+|`OPENVPN_PROVIDER` | Sets the OpenVPN provider to use. | `OPENVPN_PROVIDER=provider`. Supported providers and their config values are listed in the table above. |
 |`OPENVPN_USERNAME`|Your OpenVPN username |`OPENVPN_USERNAME=asdf`|
 |`OPENVPN_PASSWORD`|Your OpenVPN password |`OPENVPN_PASSWORD=asdf`|
 
@@ -84,18 +90,43 @@ As you can see the variables are prefixed with `TRANSMISSION_`, the variable is 
 PS: `TRANSMISSION_BIND_ADDRESS_IPV4` will be overridden to the IP assigned to your OpenVPN tunnel interface.
 This is to prevent leaking the host IP.
 
+### User configuration options
+
+By default everything will run as the root user. However, it is possible to change who runs the transmission process. 
+You may set the following parameters to customize the user id that runs transmission.
+
+| Variable | Function | Example |
+|----------|----------|-------|
+|`PUID` | Sets the user id who will run transmission | `PUID=1003`|
+|`PGID` | Sets the group id for the transmission user | `PGID=1003` |
+
+#### Use docker env file
+Another way is to use a docker env file where you can easily store all your env variables and maintain multiple configurations for different providers.
+In the GitHub repository there is a provided DockerEnv file with all the current transmission and openvpn environment variables. You can use this to create local configurations
+by filling in the details and removing the # of the ones you want to use.
+
+Please note that if you pass in env. variables on the command line these will override the ones in the env file.
+
+See explanation of variables above.
+To use this env file, use the following to run the docker image:
+```
+$ docker run --privileged  -d \
+              -v /your/storage/path/:/data \
+              -v /etc/localtime:/etc/localtime:ro \
+              -env-file /your/docker/env/file \
+              -p 9091:9091 \
+              haugene/transmission-openvpn
+```
+
 ## Access the WebUI
 But what's going on? My http://my-host:9091 isn't responding?
 This is because the VPN is active, and since docker is running in a different ip range than your client the response
 to your request will be treated as "non-local" traffic and therefore be routed out through the VPN interface.
 
 ### How to fix this
-There are several ways to fix this. The container supports the `LOCAL_NETWORK` environment variable. For instance if your local network uses the IP range 192.168.0.0/24 you would pass `-e LOCAL_NETWORK=192.168.0.0/24`. Alternatively just proxy the traffic.
+The container supports the `LOCAL_NETWORK` environment variable. For instance if your local network uses the IP range 192.168.0.0/24 you would pass `-e LOCAL_NETWORK=192.168.0.0/24`. 
 
-#### Use preconfigured image
-You can use the proxy image haugene/transmission-openvpn-proxy that comes with a config that is configurable through environment variables.
-
-Start it like this:
+Alternatively you can reverse proxy the traffic through another container, as that container would be in the docker range. There is a reverse proxy being built with the container. You can run it using the command below or have a look in the repository proxy folder for inspiration for your own custom proxy.
 
 ```
 $ docker run -d \
@@ -103,21 +134,6 @@ $ docker run -d \
       -p 8080:8080 \
       haugene/transmission-openvpn-proxy
 ```
-You can change to bind another port on your host by changing it to `-p 9090:8080` etc.
-
-#### Use a custom proxy config
-
-If you want to run the proxy with your own configuration you can do that by doing something like this.
-
-```
-$ docker run -d \
-      -v /path/to/your/nginx.conf:/etc/nginx/nginx.conf:ro \
-      -p 8080:8080 \
-      nginx
-```
-
-#### Finally
-Based on the examples above, Transmission WebUI should now be avaliable at "your.host.ip.addr:8080/transmission/web/". See the docker-compose.yml file for an example on how to run the two containers using compose.
 
 ## Known issues, tips and tricks
 
@@ -159,28 +175,6 @@ Add a new volume mount to your `docker run` command that mounts your config file
 Then you can set `OPENVPN_PROVIDER=CUSTOM`and the container will use the config you provided. If you are using AirVPN or other provider with credentials in the config file, you still need to set `OPENVPN_USERNAME` and `OPENVPN_PASSWORD` as this is required by the startup script. They will not be read by the .ovpn file, so you can set them to whatever.
 
 Note that you still need to modify your .ovpn file as described in the previous section. If you have an separate ca.crt file your volume mount should be a folder containing both the ca.crt and the .ovpn config.
-
-## Building the container yourself
-To build this container, clone the repository and cd into it.
-
-### Build it:
-```
-$ cd /repo/location/docker-transmission-openvpn
-$ docker build -t transmission-openvpn .
-```
-### Run it:
-```
-$ docker run --privileged  -d \
-              -v /your/storage/path/:/data \
-              -e "OPENVPN_PROVIDER=PIA" \
-              -e "OPENVPN_CONFIG=Netherlands" \
-              -e "OPENVPN_USERNAME=user" \
-              -e "OPENVPN_PASSWORD=pass" \
-              -p 9091:9091 \
-              transmission-openvpn
-```
-
-This will start a container as described in the "Run container from Docker registry" section.
 
 ## Controlling Transmission remotely
 The container exposes /config as a volume. This is the directory where the supplied transmission and OpenVPN credentials will be stored.
@@ -232,7 +226,7 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 ```
 - Save the file with [escape] + `:wq!`
-- Create your docker container with a classic command like `docker run --privileged -d -v /volume1/foldername/resolv.conf:/etc/resolv.conf -v /volume1/yourpath/:/data -e "OPENVPN_PROVIDER=PIA" -e "OPENVPN_CONFIG=Netherlands" -e "OPENVPN_USERNAME=XXXXX" -e "OPENVPN_PASSWORD=XXXXX" -p 9091:9091 haugene/transmission-openvpn -name TransmissionVPN`
+- Create your docker container with a classic command like `docker run --privileged -d -v /volume1/foldername/resolv.conf:/etc/resolv.conf -v /volume1/yourpath/:/data -e "OPENVPN_PROVIDER=PIA" -e "OPENVPN_CONFIG=Netherlands" -e "OPENVPN_USERNAME=XXXXX" -e "OPENVPN_PASSWORD=XXXXX" -p 9091:9091 --name "TransmissionVPN" haugene/transmission-openvpn`
 - To make it work after a nas restart, create an automated task in your synology web interface : go to **Settings Panel > Task Scheduler ** create a new task that run `/volume1/foldername/TUN.sh` as root (select '_root_' in 'user' selectbox). This task will start module that permit the container to run, you can make a task that run on startup. These kind of task doesn't work on my nas so I just made a task that run every minute.
 - Enjoy
 
