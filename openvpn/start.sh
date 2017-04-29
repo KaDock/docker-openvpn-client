@@ -49,6 +49,9 @@ fi
 # firewall all non-vpn traffic
 remote_port=$(grep 'remote ' "${OPENVPN_CONFIG}" | awk '{print $3}')
 docker_network=$(ip -o addr show dev eth0 | awk '$3 == "inet" {print $4}')
+iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+iptables -A FORWARD -i tun0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i eth0 -o tun0 -j ACCEPT
 iptables -F OUTPUT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
