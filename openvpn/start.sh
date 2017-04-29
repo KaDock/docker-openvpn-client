@@ -37,6 +37,9 @@ else
     chmod 600 /config/openvpn-credentials.txt
 fi
 
+mkdir -p /dev/net
+mknod /dev/net/tun c 10 200
+
 # allow access from local network (as an alternative to running a web proxy).
 if [ -n "${LOCAL_NETWORK-}" ]; then
     eval $(/sbin/ip r l m 0.0.0.0 | awk '{if($5!="tun0"){print "GW="$3"\nINT="$5; exit}}')
